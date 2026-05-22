@@ -13,7 +13,7 @@ Sligo Labs setup for the Tonal Dashboard fork, canonical GitHub organization own
 | --- | --- | --- |
 | Local checkout | verified | `/home/droid/.hermes/workspace/tonal-dashboard`, `main` tracking `origin/main` |
 | GitHub repo | verified | https://github.com/sligo-labs/tonal-dashboard, default branch `main` |
-| GitHub relocation | verified | Native transfer from `sligo-droid/tonal-dashboard` to `sligo-labs/tonal-dashboard` completed |
+| GitHub relocation | verified | Native transfer to `sligo-labs/tonal-dashboard` completed |
 | Local checks | verified | `pnpm test` passed 35 tests; `pnpm run typecheck` passed; `pnpm run build` passed during initial setup |
 | Vercel production deploy | verified | Production deployments from `main` reach Vercel `READY` |
 | Production URL | verified | https://tonal-dashboard.vercel.app returns HTTP 200 |
@@ -29,7 +29,7 @@ Allowed states: `planned`, `ready`, `in_progress`, `blocked`, `implemented`, `me
 - Verified package install, unit tests, typecheck, and production build.
 - Created/linked a Vercel project named `tonal-dashboard` using the available Vercel credentials.
 - Deployed production and verified the requested public URL: https://tonal-dashboard.vercel.app
-- Transferred the GitHub repo from `sligo-droid/tonal-dashboard` to `sligo-labs/tonal-dashboard`.
+- Transferred the GitHub repo to `sligo-labs/tonal-dashboard`.
 - Updated the local `origin` remote to `git@github.com:sligo-labs/tonal-dashboard.git`.
 - Connected the Vercel project to the Sligo Labs GitHub repo with production branch `main`.
 - Verified GitHub-triggered production deploys by pushing to `sligo-labs/tonal-dashboard@main` and observing Vercel reach `READY`.
