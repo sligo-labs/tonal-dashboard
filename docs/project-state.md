@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-05-22 00:07 UTC
+Last updated: 2026-05-22 00:08 UTC
 State owner: Sligo Labs
 
 ## Current focus
@@ -15,9 +15,9 @@ Sligo Labs setup for the Tonal Dashboard fork, canonical GitHub organization own
 | GitHub repo | verified | https://github.com/sligo-labs/tonal-dashboard, default branch `main` |
 | GitHub relocation | verified | Native transfer from `sligo-droid/tonal-dashboard` to `sligo-labs/tonal-dashboard` completed |
 | Local checks | verified | `pnpm test` passed 35 tests; `pnpm run typecheck` passed; `pnpm run build` passed during initial setup |
-| Vercel production deploy | verified | `dpl_264pogmvdWqQ8qheC6y4tQ75M4xY`, status `Ready` |
+| Vercel production deploy | verified | Production deployments from `main` reach Vercel `READY` |
 | Production URL | verified | https://tonal-dashboard.vercel.app returns HTTP 200 |
-| Vercel Git integration | verified | Vercel project link is `github`, org `sligo-labs`, repo `tonal-dashboard`, production branch `main` |
+| Vercel Git integration | verified | Vercel project link is `github`, org `sligo-labs`, repo `tonal-dashboard`, production branch `main`; a push to `main` triggered a `READY` production deployment from `sligo-labs/tonal-dashboard` |
 | Dashboard data config | blocked | Vercel env var `TONAL_MEMBERS_JSON` is not configured yet; `/api/dashboard` returns the app's setup notice |
 | Optional avatar uploads | planned | Configure Vercel env vars `BLOB_READ_WRITE_TOKEN` and `AVATAR_ADMIN_TOKEN` only if avatar uploads should persist |
 
@@ -32,6 +32,7 @@ Allowed states: `planned`, `ready`, `in_progress`, `blocked`, `implemented`, `me
 - Transferred the GitHub repo from `sligo-droid/tonal-dashboard` to `sligo-labs/tonal-dashboard`.
 - Updated the local `origin` remote to `git@github.com:sligo-labs/tonal-dashboard.git`.
 - Connected the Vercel project to the Sligo Labs GitHub repo with production branch `main`.
+- Verified GitHub-triggered production deploys by pushing to `sligo-labs/tonal-dashboard@main` and observing Vercel reach `READY`.
 
 ## Blocked
 
@@ -49,7 +50,6 @@ Do not store secret values here.
 
 1. Add `TONAL_MEMBERS_JSON` in Vercel when the Tonal refresh tokens are available.
 2. Re-deploy production after env vars are set, then smoke `/api/dashboard` for `configured: true`.
-3. For the next repo change, confirm Vercel's GitHub integration produces the expected production deployment from `sligo-labs/tonal-dashboard@main`.
 
 ## Verification Checklist
 
@@ -61,6 +61,7 @@ Do not store secret values here.
 - [x] Native GitHub transfer to `sligo-labs/tonal-dashboard` completed.
 - [x] Local git remote tracks `git@github.com:sligo-labs/tonal-dashboard.git`.
 - [x] Vercel GitHub link points at `sligo-labs/tonal-dashboard` with production branch `main`.
+- [x] Vercel GitHub integration produced a `READY` production deployment from a `main` push.
 - [x] Production Vercel deployment reached `Ready`.
 - [x] https://tonal-dashboard.vercel.app returned HTTP 200.
 - [x] `/api/dashboard` was smoke-tested and correctly reports missing `TONAL_MEMBERS_JSON` until secrets are configured.
