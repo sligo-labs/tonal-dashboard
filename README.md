@@ -1,6 +1,6 @@
 # Tonal Dashboard
 
-A tiny README wiggle for deployment testing.
+A tiny README wiggle for harmless deployment testing.
 
 A public, Vercel-friendly dashboard for multiple Tonal family members.
 
