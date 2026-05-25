@@ -1,13 +1,15 @@
 #!/usr/bin/env tsx
+import path from "node:path";
 import { stdin, stdout } from "process";
+import { fileURLToPath } from "node:url";
 
 const AUTH0_CLIENT_ID = "ERCyexW-xoVG_Yy3RDe-eV4xsOnRHP6L";
 
 async function main() {
-  const [email, passwordArg] = process.argv.slice(2);
+  const { email, passwordArg } = parseAuthTokenArgs(process.argv.slice(2));
   if (!email) {
-    console.error("Usage: npm run auth:token -- you@example.com");
-    console.error("Optional non-interactive mode: TONAL_PASSWORD=... npm run auth:token -- you@example.com");
+    console.error("Usage: pnpm run auth:token -- you@example.com");
+    console.error("Optional non-interactive mode: TONAL_PASSWORD=... pnpm run auth:token -- you@example.com");
     process.exit(1);
   }
 
@@ -39,6 +41,12 @@ async function main() {
   console.log(body.refresh_token);
 }
 
+export function parseAuthTokenArgs(argv: string[]) {
+  const args = argv[0] === "--" ? argv.slice(1) : argv;
+  const [email, passwordArg] = args;
+  return { email, passwordArg };
+}
+
 function promptHidden(prompt: string): Promise<string> {
   return new Promise((resolve) => {
     stdout.write(prompt);
@@ -66,7 +74,9 @@ function promptHidden(prompt: string): Promise<string> {
   });
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
