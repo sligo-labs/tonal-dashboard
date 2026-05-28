@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveMemberPersonalRecords,
   getMemberDetailInsights,
   getPersonalTrendBadges,
   groupActivitiesByWeek,
@@ -186,6 +187,67 @@ describe("dashboard metrics", () => {
     expect(insights.trainingStyle.traits).toContain("+35 strength score");
     expect(insights.recentHighlights.bestVolumeWorkout).toMatchObject({ title: "Upper Density", volume: 6200 });
     expect(insights.recentHighlights.densityWorkout).toMatchObject({ title: "Upper Density", density: 620 });
+  });
+
+  it("prefers all-time personal records over recent detail records", () => {
+    const allTimeRecords = deriveMemberPersonalRecords(
+      [
+        {
+          activityId: "recent-light",
+          activityTime: "2026-05-10T10:00:00Z",
+          workoutPreview: { workoutTitle: "Recent Light", totalVolume: 2000, totalReps: 40 }
+        },
+        {
+          activityId: "old-peak",
+          activityTime: "2025-01-10T10:00:00Z",
+          workoutPreview: { workoutTitle: "Old Peak", totalVolume: 9000, totalReps: 180 }
+        }
+      ],
+      [
+        {
+          activityId: "old-peak",
+          name: "Old Peak",
+          duration: 2100,
+          totalReps: 180,
+          totalVolume: 9000,
+          movementSets: [
+            { movementName: "Deadlift", totalVolume: 9000, sets: [{ repCount: 3, weight: 225, oneRepMax: 250, maxConPower: 700 }] }
+          ]
+        }
+      ]
+    );
+
+    const insights = getMemberDetailInsights({
+      member: { id: "taylor", name: "Taylor" },
+      allTime: { totalVolume: 11000, totalWorkouts: 2, totalReps: 220, totalDuration: 3900 },
+      personalRecords: allTimeRecords,
+      weeklyVolume: [],
+      activities: [
+        {
+          activityId: "recent-light",
+          activityTime: "2026-05-10T10:00:00Z",
+          workoutPreview: { workoutTitle: "Recent Light", totalVolume: 2000, totalReps: 40 }
+        }
+      ],
+      recentWorkoutDetails: [
+        {
+          activityId: "recent-light",
+          name: "Recent Light",
+          duration: 1800,
+          totalReps: 40,
+          totalVolume: 2000,
+          movementSets: [
+            { movementName: "Bench Press", totalVolume: 2000, sets: [{ repCount: 8, weight: 90, oneRepMax: 110, maxConPower: 300 }] }
+          ]
+        }
+      ]
+    });
+
+    expect(insights.records.heaviestSet).toMatchObject({ value: 225, movementName: "Deadlift", workoutName: "Old Peak" });
+    expect(insights.records.bestOneRepMax).toMatchObject({ value: 250, movementName: "Deadlift", workoutName: "Old Peak" });
+    expect(insights.records.mostRepsWorkout).toMatchObject({ value: 180, workoutName: "Old Peak" });
+    expect(insights.records.highestVolumeWorkout).toMatchObject({ value: 9000, workoutName: "Old Peak" });
+    expect(insights.records.peakPower).toMatchObject({ value: 700, movementName: "Deadlift", workoutName: "Old Peak" });
   });
 
   it("ranks family members by all-time volume", () => {

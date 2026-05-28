@@ -95,6 +95,7 @@ async function buildDashboardPayload(members: TonalMember[]): Promise<DashboardP
             readiness: {},
             topReady: [],
             allTime: { totalVolume: 0, totalWorkouts: 0, totalReps: 0, totalDuration: 0 },
+            personalRecords: {},
             activities: [],
             recentWorkoutDetails: [],
             weeklyVolume: [],

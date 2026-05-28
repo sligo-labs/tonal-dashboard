@@ -608,7 +608,7 @@ function PersonalRecordsPanel({ insights }: { insights: MemberDetailInsights }) 
 
   return (
     <section className="panel personal-records-panel" data-section="personal-records">
-      <div className="panel-heading"><h2>Personal records</h2><span>Recent detail</span></div>
+      <div className="panel-heading"><h2>Personal records</h2><span>All-time</span></div>
       <div className="record-grid">
         {recordSlots.map((slot) => <RecordCard key={slot.key} label={slot.label} record={insights.records[slot.key]} />)}
       </div>
@@ -621,7 +621,7 @@ function RecordCard({ label, record }: { label: string; record?: NonNullable<Mem
     <article className={record ? "record-card" : "record-card record-card-empty"}>
       <span>{record?.label ?? label}</span>
       <strong>{record ? `${formatNumber(record.value)} ${record.unit}` : "—"}</strong>
-      <em>{record ? recordContext(record) : "Waiting for formatted workout details."}</em>
+      <em>{record ? recordContext(record) : "Waiting for all-time workout details."}</em>
     </article>
   );
 }
@@ -779,7 +779,7 @@ function recordContext(record: NonNullable<MemberDetailInsights["records"][keyof
     record.workoutName && record.workoutName !== record.movementName ? `in ${record.workoutName}` : undefined,
     record.date ? formatDate(record.date) : undefined
   ].filter(Boolean);
-  return context.join(" • ") || "Recent workout detail";
+  return context.join(" • ") || "All-time workout detail";
 }
 
 function prettifyLabel(value?: string | null): string {

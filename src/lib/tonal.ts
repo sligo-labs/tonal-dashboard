@@ -1,10 +1,13 @@
 import { TonalMember } from "./members";
-import { AllTimeStats, groupActivitiesByWeek, normalizeStrengthHistory, normalizeStrengthScores, summarizeAllTimeStats, summarizeCalendarDays, topReadyMuscles } from "./metrics";
+import { deriveMemberPersonalRecords, groupActivitiesByWeek, normalizeStrengthHistory, normalizeStrengthScores, summarizeAllTimeStats, summarizeCalendarDays, topReadyMuscles } from "./metrics";
+import type { AllTimeStats, MemberDetailInsights } from "./metrics";
 
 const AUTH0_CLIENT_ID = "ERCyexW-xoVG_Yy3RDe-eV4xsOnRHP6L";
 const AUTH0_TOKEN_URL = "https://tonal.auth0.com/oauth/token";
 const TONAL_API_BASE = "https://api.tonal.com";
 const RECENT_WORKOUT_DETAIL_LIMIT = 5;
+const WORKOUT_DETAIL_CONCURRENCY = 6;
+const workoutDetailCache = new Map<string, TonalWorkoutDetail>();
 
 type TokenBundle = {
   id_token: string;
@@ -22,6 +25,7 @@ export type TonalDashboard = {
   readiness: Record<string, number>;
   topReady: [string, number][];
   allTime: AllTimeStats;
+  personalRecords: MemberDetailInsights["records"];
   activities: TonalActivity[];
   recentWorkoutDetails: TonalWorkoutDetail[];
   weeklyVolume: ReturnType<typeof groupActivitiesByWeek>;
@@ -33,6 +37,10 @@ export type TonalActivity = {
   activityId?: string;
   activityTime?: string;
   activityType?: string;
+  totalVolume?: number;
+  totalReps?: number;
+  totalDuration?: number;
+  activeDuration?: number;
   workoutPreview?: {
     workoutTitle?: string;
     programName?: string;
@@ -40,6 +48,7 @@ export type TonalActivity = {
     targetArea?: string;
     totalDuration?: number;
     totalVolume?: number;
+    totalReps?: number;
     totalWork?: number;
     totalAchievements?: number;
   };
@@ -138,7 +147,15 @@ export async function getFamilyDashboard(member: TonalMember): Promise<TonalDash
     ? [...activities].sort((a, b) => new Date(b.activityTime ?? 0).getTime() - new Date(a.activityTime ?? 0).getTime())
     : workoutActivitySummaries.slice(0, 20);
   const readiness = readinessRaw && !Array.isArray(readinessRaw) ? readinessRaw : {};
-  const recentWorkoutDetails = await getRecentWorkoutDetails(client, userId, displayActivities, errors);
+  const allTimeRecordActivities = workoutActivitySummaries.length ? workoutActivitySummaries : displayActivities;
+  const allTimeWorkoutDetails = await getWorkoutDetails(client, userId, allTimeRecordActivities, errors, {
+    label: "all-time workout details"
+  });
+  const missingRecentActivities = findMissingRecentDetailActivities(displayActivities, allTimeWorkoutDetails);
+  const fallbackRecentDetails = missingRecentActivities.length
+    ? await getWorkoutDetails(client, userId, missingRecentActivities, errors, { label: "recent workout details" })
+    : [];
+  const recentWorkoutDetails = pickRecentWorkoutDetails(displayActivities, [...allTimeWorkoutDetails, ...fallbackRecentDetails]);
   const calendarDays = summarizeCalendarDays(workoutActivities.length ? workoutActivities : displayActivities);
 
   return {
@@ -149,6 +166,7 @@ export async function getFamilyDashboard(member: TonalMember): Promise<TonalDash
     readiness,
     topReady: topReadyMuscles(readiness),
     allTime: summarizeAllTimeStats(workoutActivities),
+    personalRecords: deriveMemberPersonalRecords(allTimeRecordActivities, allTimeWorkoutDetails),
     activities: displayActivities,
     recentWorkoutDetails,
     weeklyVolume: groupActivitiesByWeek(workoutActivitySummaries.length ? workoutActivitySummaries : displayActivities),
@@ -157,29 +175,66 @@ export async function getFamilyDashboard(member: TonalMember): Promise<TonalDash
   };
 }
 
-async function getRecentWorkoutDetails(
+async function getWorkoutDetails(
   client: TonalClient,
   userId: string,
   activities: TonalActivity[],
-  errors: string[]
+  errors: string[],
+  options: { label: string; limit?: number }
 ): Promise<TonalWorkoutDetail[]> {
-  const detailRequests = activities
+  const detailActivities = activities
     .filter((activity): activity is TonalActivity & { activityId: string } => Boolean(activity.activityId))
-    .slice(0, RECENT_WORKOUT_DETAIL_LIMIT)
-    .map(async (activity) => {
-      const summary = await client.get<TonalFormattedWorkoutSummary>(
-        `/v6/formatted/users/${userId}/workout-summaries/${activity.activityId}`
-      );
-      return normalizeWorkoutDetail(activity.activityId, summary);
-    });
+    .slice(0, options.limit);
 
-  const settled = await Promise.allSettled(detailRequests);
   const details: TonalWorkoutDetail[] = [];
-  for (const result of settled) {
-    if (result.status === "fulfilled") details.push(result.value);
-    else noteError(errors, "recent workout details", result.reason);
+  const uncachedActivities: Array<TonalActivity & { activityId: string }> = [];
+
+  for (const activity of detailActivities) {
+    const cached = workoutDetailCache.get(workoutDetailCacheKey(userId, activity.activityId));
+    if (cached) details.push(cached);
+    else uncachedActivities.push(activity);
+  }
+
+  for (let index = 0; index < uncachedActivities.length; index += WORKOUT_DETAIL_CONCURRENCY) {
+    const batch = uncachedActivities.slice(index, index + WORKOUT_DETAIL_CONCURRENCY);
+    const settled = await Promise.allSettled(
+      batch.map(async (activity) => {
+        const summary = await client.get<TonalFormattedWorkoutSummary>(
+          `/v6/formatted/users/${userId}/workout-summaries/${activity.activityId}`
+        );
+        const detail = normalizeWorkoutDetail(activity.activityId, summary);
+        workoutDetailCache.set(workoutDetailCacheKey(userId, activity.activityId), detail);
+        return detail;
+      })
+    );
+
+    for (const result of settled) {
+      if (result.status === "fulfilled") details.push(result.value);
+      else noteError(errors, options.label, result.reason);
+    }
   }
   return details;
+}
+
+function workoutDetailCacheKey(userId: string, activityId: string): string {
+  return `${userId}:${activityId}`;
+}
+
+function findMissingRecentDetailActivities(activities: TonalActivity[], details: TonalWorkoutDetail[]): TonalActivity[] {
+  const detailsById = new Set(details.map((detail) => detail.activityId));
+  return activities
+    .filter((activity): activity is TonalActivity & { activityId: string } => Boolean(activity.activityId))
+    .slice(0, RECENT_WORKOUT_DETAIL_LIMIT)
+    .filter((activity) => !detailsById.has(activity.activityId));
+}
+
+function pickRecentWorkoutDetails(activities: TonalActivity[], details: TonalWorkoutDetail[]): TonalWorkoutDetail[] {
+  const detailsById = new Map(details.map((detail) => [detail.activityId, detail]));
+  return activities
+    .filter((activity): activity is TonalActivity & { activityId: string } => Boolean(activity.activityId))
+    .slice(0, RECENT_WORKOUT_DETAIL_LIMIT)
+    .map((activity) => detailsById.get(activity.activityId))
+    .filter((detail): detail is TonalWorkoutDetail => Boolean(detail));
 }
 
 function normalizeWorkoutDetail(activityId: string, summary: TonalFormattedWorkoutSummary): TonalWorkoutDetail {
@@ -228,11 +283,16 @@ function workoutActivityToActivity(workout: TonalWorkoutActivity): TonalActivity
     activityId: workout.id ?? workout.workoutActivityID,
     activityTime: workout.beginTime,
     activityType: workout.workoutType,
+    totalVolume: workout.totalVolume,
+    totalReps: workout.totalReps,
+    totalDuration: workout.totalDuration,
+    activeDuration: workout.activeDuration,
     workoutPreview: {
       workoutTitle: workout.workoutTitle ?? workout.workoutType,
       targetArea: workout.targetArea ?? workout.workoutType,
       totalDuration: workout.totalDuration ?? workout.activeDuration,
       totalVolume: workout.totalVolume,
+      totalReps: workout.totalReps,
       totalWork: workout.totalWork
     }
   };

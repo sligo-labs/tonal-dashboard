@@ -795,6 +795,7 @@ describe("DashboardApp", () => {
     expect(readinessSection && workoutDnaSection ? readinessSection.compareDocumentPosition(workoutDnaSection) & Node.DOCUMENT_POSITION_FOLLOWING : 0).toBeTruthy();
 
     expect(container.textContent).toContain("Personal records");
+    expect(container.textContent).toContain("All-time");
     expect(container.textContent).toContain("Heaviest set");
     expect(container.textContent).toContain("100 lb");
     expect(container.textContent).toContain("Best estimated 1RM");

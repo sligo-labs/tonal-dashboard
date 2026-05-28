@@ -238,6 +238,7 @@ export type DashboardMetricMember = {
   strength?: NormalizedStrengthScores;
   strengthHistory?: StrengthHistoryPoint[];
   allTime: AllTimeStats;
+  personalRecords?: MemberDetailInsights["records"];
   weeklyVolume: WeeklyVolume[];
   calendarDays?: TrainingCalendarDay[];
   activities?: DetailActivityInput[];
@@ -357,7 +358,8 @@ export function getMemberDetailInsights(member: DashboardMetricMember): MemberDe
   const days = normalizeCalendarDays(member.calendarDays?.length ? member.calendarDays : summarizeCalendarDays(member.activities ?? []));
   const calendar = summarizeTrainingCalendar(days);
   const workouts = collectWorkoutSummaries(member.activities ?? [], member.recentWorkoutDetails ?? []);
-  const records = derivePersonalRecords(workouts);
+  const recentRecords = derivePersonalRecords(workouts);
+  const records = member.personalRecords ? { ...recentRecords, ...member.personalRecords } : recentRecords;
   const favoriteMovements = deriveFavoriteMovements(member.recentWorkoutDetails ?? []);
   const bodyBalance = deriveBodyBalance(workouts);
 
@@ -369,6 +371,13 @@ export function getMemberDetailInsights(member: DashboardMetricMember): MemberDe
     trainingStyle: deriveTrainingStyle(member, calendar, bodyBalance),
     recentHighlights: deriveRecentHighlights(workouts, records)
   };
+}
+
+export function deriveMemberPersonalRecords(
+  activities: DetailActivityInput[],
+  details: DetailWorkoutInput[]
+): MemberDetailInsights["records"] {
+  return derivePersonalRecords(collectWorkoutSummaries(activities, details));
 }
 
 export function rankMembersByAllTimeVolume<T extends { member: { id: string; name: string }; allTime: { totalVolume: number } }>(
